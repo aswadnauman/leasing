@@ -78,6 +78,76 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
+// Handle viewing a single payment (for details)
+$payment_detail = null;
+if (isset($_GET['view'])) {
+    $view_id = $_GET['view'];
+    $stmt = $conn->prepare("SELECT lp.*, u.username FROM lease_payments lp LEFT JOIN users u ON lp.created_by = u.user_id WHERE lp.payment_id = ?");
+    $stmt->bind_param("s", $view_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($res && $res->num_rows > 0) {
+        $payment_detail = $res->fetch_assoc();
+    }
+    $stmt->close();
+}
+
+// Handle deletion of a payment (with basic reversal of amounts)
+if (isset($_GET['delete'])) {
+    $delete_id = $_GET['delete'];
+    // Only Admin or AccountsOfficer may delete payments
+    $role = $_SESSION['role'] ?? '';
+    if ($role == 'Admin' || $role == 'AccountsOfficer') {
+        $conn->begin_transaction();
+        try {
+            // Get payment record
+            $stmt = $conn->prepare("SELECT lease_id, installment_id, amount FROM lease_payments WHERE payment_id = ?");
+            $stmt->bind_param("s", $delete_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result && $result->num_rows > 0) {
+                $rec = $result->fetch_assoc();
+                $lease_id = $rec['lease_id'];
+                $installment_id = $rec['installment_id'];
+                $amount = $rec['amount'];
+
+                // Reverse installment paid amount if applicable
+                if ($installment_id) {
+                    $stmt2 = $conn->prepare("UPDATE installment_schedule SET paid_amount = paid_amount - ?, payment_date = NULL, status = 'Pending' WHERE id = ?");
+                    $stmt2->bind_param("di", $amount, $installment_id);
+                    $stmt2->execute();
+                    $stmt2->close();
+                }
+
+                // Reverse lease outstanding amount
+                $stmt3 = $conn->prepare("UPDATE leases SET outstanding_amount = outstanding_amount + ? WHERE lease_id = ?");
+                $stmt3->bind_param("ds", $amount, $lease_id);
+                $stmt3->execute();
+                $stmt3->close();
+
+                // Delete payment record
+                $stmt4 = $conn->prepare("DELETE FROM lease_payments WHERE payment_id = ?");
+                $stmt4->bind_param("s", $delete_id);
+                $stmt4->execute();
+                $stmt4->close();
+
+                $conn->commit();
+                $success = "Payment deleted and amounts reversed successfully.";
+                // Redirect to avoid repeated delete on refresh
+                header("Location: payment_collection.php");
+                exit();
+            } else {
+                throw new Exception("Payment record not found");
+            }
+        } catch (Exception $e) {
+            $conn->rollback();
+            $error = $e->getMessage();
+        }
+    } else {
+        $error = "You do not have permission to delete payments.";
+    }
+}
+
 // Fetch leases for dropdown
 $leases_result = $conn->query("
     SELECT l.lease_id, c.full_name as client_name, p.product_name
@@ -156,6 +226,32 @@ $conn->close();
                         <?php echo $error; ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
+                <?php endif; ?>
+                
+                <?php if (!empty($payment_detail)): ?>
+                <div class="card mb-4 border-info">
+                    <div class="card-header bg-info text-white">
+                        <strong>Payment Details: <?php echo htmlspecialchars($payment_detail['payment_id']); ?></strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4"><strong>Lease ID:</strong> <?php echo htmlspecialchars($payment_detail['lease_id']); ?></div>
+                            <div class="col-md-4"><strong>Amount:</strong> ₹<?php echo number_format($payment_detail['amount'],2); ?></div>
+                            <div class="col-md-4"><strong>Method:</strong> <?php echo htmlspecialchars($payment_detail['payment_method']); ?></div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4"><strong>Date:</strong> <?php echo date('M j, Y', strtotime($payment_detail['payment_date'])); ?></div>
+                            <div class="col-md-4"><strong>Reference:</strong> <?php echo htmlspecialchars($payment_detail['reference_no']); ?></div>
+                            <div class="col-md-4"><strong>Bank:</strong> <?php echo htmlspecialchars($payment_detail['bank_name']); ?></div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-12"><strong>Remarks:</strong> <?php echo nl2br(htmlspecialchars($payment_detail['remarks'])); ?></div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="payment_collection.php" class="btn btn-secondary btn-sm">Close</a>
+                        </div>
+                    </div>
+                </div>
                 <?php endif; ?>
                 
                 <!-- Payment Collection Form -->
@@ -277,6 +373,7 @@ $conn->close();
                                         <th>Payment Method</th>
                                         <th>Date</th>
                                         <th>Recorded By</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -301,6 +398,12 @@ $conn->close();
                                                 <td><?php echo htmlspecialchars($payment['payment_method']); ?></td>
                                                 <td><?php echo date('M j, Y', strtotime($payment['payment_date'])); ?></td>
                                                 <td><?php echo htmlspecialchars($payment['username']); ?></td>
+                                                <td>
+                                                    <a href="payment_collection.php?view=<?php echo urlencode($payment['payment_id']); ?>" class="btn btn-sm btn-outline-primary">View</a>
+                                                    <?php if (in_array($_SESSION['role'] ?? '', ['Admin','AccountsOfficer'])): ?>
+                                                        <a href="payment_collection.php?delete=<?php echo urlencode($payment['payment_id']); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this payment? This will attempt to reverse amounts.');">Delete</a>
+                                                    <?php endif; ?>
+                                                </td>
                                             </tr>
                                         <?php endwhile; 
                                     else: ?>

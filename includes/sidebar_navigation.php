@@ -314,7 +314,7 @@ $user_role = $_SESSION['role'] ?? 'User';
               </a>
             </div>
             <div class="nav-item">
-              <a class="nav-link" href="system_config.php">
+              <a class="nav-link" href="master_settings.php">
                 <i class="bi bi-gear me-2"></i>System Configuration
               </a>
             </div>
