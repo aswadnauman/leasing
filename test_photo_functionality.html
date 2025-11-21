@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Photo Functionality</title>
+</head>
+<body>
+    <h2>Test Photo Upload and Display</h2>
+    
+    <div>
+        <label for="photo-upload">Select Photo:</label>
+        <input type="file" id="photo-upload" accept="image/*">
+        <div id="photo-preview" style="margin-top: 10px;"></div>
+        <input type="hidden" id="photo-data">
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="testExistingPhoto()">Test Existing Photo Display</button>
+        <button onclick="clearPreview()">Clear Preview</button>
+    </div>
+    
+    <script src="assets/js/image_handler.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize the photo upload handler
+            if (typeof handleFileUpload === 'function') {
+                handleFileUpload('photo-upload', 'photo-preview', 'photo-data');
+            }
+        });
+        
+        function testExistingPhoto() {
+            // Test with a sample image URL
+            const sampleImageUrl = 'https://via.placeholder.com/150';
+            if (typeof displayExistingPhoto === 'function') {
+                displayExistingPhoto('photo-preview', sampleImageUrl);
+            }
+        }
+        
+        function clearPreview() {
+            document.getElementById('photo-preview').innerHTML = '';
+            document.getElementById('photo-data').value = '';
+            document.getElementById('photo-upload').value = '';
+        }
+    </script>
+</body>
+</html>

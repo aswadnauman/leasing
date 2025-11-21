@@ -321,7 +321,7 @@ $conn->close();
                             
                             <?php if ($role == 'BranchManager'): ?>
                             <div class="col-md-3 col-6 mb-3">
-                                <a href="master_settings.php" class="btn btn-outline-secondary w-100">
+                                <a href="profession.php" class="btn btn-outline-secondary w-100">
                                     <i class="bi bi-gear me-2"></i>Master Settings
                                 </a>
                             </div>
@@ -420,7 +420,7 @@ $conn->close();
                                         <i class="bi bi-gear text-primary"></i>
                                         <h6>Master Settings</h6>
                                         <p class="text-muted small">Reference data management</p>
-                                        <a href="master_settings.php" class="btn btn-sm btn-outline-primary">Access</a>
+                                        <a href="profession.php" class="btn btn-sm btn-outline-primary">Access</a>
                                     </div>
                                 </div>
                             </div>

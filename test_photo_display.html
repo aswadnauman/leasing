@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Display Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Photo Display Test</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Add New Person</h3>
+                <form id="add-form">
+                    <input type="hidden" id="add-photo-data" name="photo_data">
+                    
+                    <div class="mb-3">
+                        <label for="add-photo-upload" class="form-label">Select Photo</label>
+                        <input type="file" class="form-control" id="add-photo-upload" accept="image/*">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Photo Preview</label>
+                        <div id="add-photo-preview" class="mt-2 border p-2" style="min-height: 150px; background-color: #f8f9fa;">
+                            <span class="text-muted">No image selected</span>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="init-add-handler" class="btn btn-secondary">Initialize Handler</button>
+                    <button type="button" id="test-add-submit" class="btn btn-primary">Test Submit</button>
+                </form>
+            </div>
+            
+            <div class="col-md-6">
+                <h3>Edit Existing Person</h3>
+                <form id="edit-form">
+                    <input type="hidden" id="edit-existing-photo-path" name="existing_photo_path">
+                    <input type="hidden" id="edit-photo-data" name="photo_data">
+                    
+                    <div class="mb-3">
+                        <label for="edit-photo-upload" class="form-label">Select Photo</label>
+                        <input type="file" class="form-control" id="edit-photo-upload" accept="image/*">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Photo Preview</label>
+                        <div id="edit-photo-preview" class="mt-2 border p-2" style="min-height: 150px; background-color: #f8f9fa;">
+                            <span class="text-muted">No image selected</span>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="show-existing" class="btn btn-info">Show Existing Photo</button>
+                    <button type="button" id="init-edit-handler" class="btn btn-secondary">Initialize Handler</button>
+                    <button type="button" id="test-edit-submit" class="btn btn-primary">Test Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="assets/js/image_handler.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            
+            // Initialize add handler
+            document.getElementById('init-add-handler').addEventListener('click', function() {
+                console.log('Initializing add handler');
+                if (typeof handleFileUpload === 'function') {
+                    handleFileUpload('add-photo-upload', 'add-photo-preview', 'add-photo-data');
+                } else {
+                    console.error('handleFileUpload function not found');
+                }
+            });
+            
+            // Initialize edit handler
+            document.getElementById('init-edit-handler').addEventListener('click', function() {
+                console.log('Initializing edit handler');
+                if (typeof handleFileUpload === 'function') {
+                    handleFileUpload('edit-photo-upload', 'edit-photo-preview', 'edit-photo-data');
+                } else {
+                    console.error('handleFileUpload function not found');
+                }
+            });
+            
+            // Show existing photo
+            document.getElementById('show-existing').addEventListener('click', function() {
+                console.log('Showing existing photo');
+                // Create a test image file
+                const canvas = document.createElement('canvas');
+                canvas.width = 100;
+                canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#cccccc';
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.fillStyle = '#333333';
+                ctx.font = '12px Arial';
+                ctx.fillText('Test Image', 15, 50);
+                
+                const dataURL = canvas.toDataURL('image/png');
+                
+                // Save as a test file
+                const link = document.createElement('a');
+                link.href = dataURL;
+                link.download = 'test-existing-photo.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Display in preview
+                if (typeof displayExistingPhoto === 'function') {
+                    // For testing, we'll use a data URL as the "existing photo path"
+                    displayExistingPhoto('edit-photo-preview', dataURL);
+                    document.getElementById('edit-existing-photo-path').value = dataURL;
+                } else {
+                    console.error('displayExistingPhoto function not found');
+                }
+            });
+            
+            // Test add submit
+            document.getElementById('test-add-submit').addEventListener('click', function() {
+                console.log('Add form submitted');
+                console.log('Photo data length:', document.getElementById('add-photo-data').value.length);
+                if (document.getElementById('add-photo-data').value.length > 0) {
+                    alert('Add form would be submitted with photo data of length: ' + document.getElementById('add-photo-data').value.length);
+                } else {
+                    alert('No photo data to submit');
+                }
+            });
+            
+            // Test edit submit
+            document.getElementById('test-edit-submit').addEventListener('click', function() {
+                console.log('Edit form submitted');
+                console.log('Existing photo path:', document.getElementById('edit-existing-photo-path').value);
+                console.log('New photo data length:', document.getElementById('edit-photo-data').value.length);
+                alert('Edit form would be submitted with existing photo: ' + 
+                      (document.getElementById('edit-existing-photo-path').value ? 'Yes' : 'No') + 
+                      ' and new photo data: ' + 
+                      (document.getElementById('edit-photo-data').value.length > 0 ? 'Yes' : 'No'));
+            });
+            
+            // Initialize handlers on page load
+            setTimeout(function() {
+                console.log('Auto-initializing handlers');
+                if (typeof handleFileUpload === 'function') {
+                    handleFileUpload('add-photo-upload', 'add-photo-preview', 'add-photo-data');
+                    handleFileUpload('edit-photo-upload', 'edit-photo-preview', 'edit-photo-data');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

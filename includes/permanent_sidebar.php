@@ -34,27 +34,27 @@ $username = $_SESSION['username'] ?? 'User';
           <div class="collapse" id="masterSettings">
             <div class="nav flex-column ms-4">
               <div class="nav-item">
-                <a class="nav-link" href="master_settings.php#profession">
+                <a class="nav-link" href="profession.php">
                   <i class="bi bi-briefcase me-2"></i>Profession
                 </a>
               </div>
               <div class="nav-item">
-                <a class="nav-link" href="master_settings.php#area">
+                <a class="nav-link" href="area.php">
                   <i class="bi bi-map me-2"></i>Area
                 </a>
               </div>
               <div class="nav-item">
-                <a class="nav-link" href="master_settings.php#road">
+                <a class="nav-link" href="road.php">
                   <i class="bi bi-signpost me-2"></i>Road
                 </a>
               </div>
               <div class="nav-item">
-                <a class="nav-link" href="master_settings.php#city">
+                <a class="nav-link" href="city.php">
                   <i class="bi bi-building me-2"></i>City
                 </a>
               </div>
               <div class="nav-item">
-                <a class="nav-link" href="recovery_persons.php">
+                <a class="nav-link" href="recovery_person.php">
                   <i class="bi bi-person-badge me-2"></i>Recovery Person
                 </a>
               </div>
@@ -66,28 +66,18 @@ $username = $_SESSION['username'] ?? 'User';
         <?php if ($user_role == 'Admin' || $user_role == 'BranchManager' || $user_role == 'Sales'): ?>
         <!-- Client Management Section (Collapsible) -->
         <div class="nav-item mt-3">
-          <a class="nav-link dropdown-toggle" data-bs-toggle="collapse" href="#clientManagement" role="button" aria-expanded="false" aria-controls="clientManagement">
-            <i class="bi bi-people me-2"></i>Client Management
-          </a>
-          <div class="collapse" id="clientManagement">
-            <div class="nav flex-column ms-4">
-              <div class="nav-item">
-                <a class="nav-link" href="clients.php?action=add">
-                  <i class="bi bi-person-plus me-2"></i>Add Client
-                </a>
-              </div>
-              <div class="nav-item">
-                <a class="nav-link" href="clients.php">
-                  <i class="bi bi-search me-2"></i>Search Clients
-                </a>
-              </div>
-              <div class="nav-item">
-                <a class="nav-link" href="clients.php#list">
-                  <i class="bi bi-list me-2"></i>Client List
-                </a>
-              </div>
+            <a class="nav-link dropdown-toggle" data-bs-toggle="collapse" href="#clientManagement" role="button" aria-expanded="false" aria-controls="clientManagement">
+                <i class="bi bi-people me-2"></i>Client Management
+            </a>
+            <div class="collapse" id="clientManagement">
+                <div class="nav flex-column ms-4">
+                    <div class="nav-item">
+                        <a class="nav-link" href="clients.php">
+                            <i class="bi bi-person me-2"></i>Client Management
+                        </a>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
         <?php endif; ?>
         

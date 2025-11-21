@@ -1,7 +1,6 @@
 <?php
 session_start();
 require_once 'config/db.php';
-require_once 'includes/dynamic_dropdowns.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -9,9 +8,16 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+$conn = getDBConnection();
+
+// Function to compress image (simplified version without GD)
+function compressImage($source, $destination, $quality) {
+    // Simply copy the file without compression if GD is not available
+    return copy($source, $destination);
+}
+
 // Handle AJAX search requests for clients
 if (isset($_GET['action']) && $_GET['action'] == 'search' && isset($_GET['q'])) {
-    $conn = getDBConnection();
     $search = $_GET['q'];
     $searchTerm = "%$search%";
     
@@ -22,18 +28,27 @@ if (isset($_GET['action']) && $_GET['action'] == 'search' && isset($_GET['q'])) 
     
     $clients = array();
     while ($row = $result->fetch_assoc()) {
-        $clients[] = $row;
+        // Format for Select2
+        $clients[] = array(
+            'id' => $row['client_id'],
+            'text' => $row['full_name']
+        );
     }
     
+    // Format the response correctly for Select2
+    $response = array(
+        "results" => $clients
+    );
+    
     header('Content-Type: application/json');
-    echo json_encode($clients);
-    $conn->close();
+    echo json_encode($response);
+    $stmt->close();
+    // Don't close the connection here as it's used later
     exit();
 }
 
 // Handle AJAX search requests for master data
 if (isset($_GET['action']) && $_GET['action'] == 'search_master' && isset($_GET['type']) && isset($_GET['q'])) {
-    $conn = getDBConnection();
     $type = $_GET['type'];
     $search = $_GET['q'];
     $searchTerm = "%$search%";
@@ -52,8 +67,14 @@ if (isset($_GET['action']) && $_GET['action'] == 'search_master' && isset($_GET[
             $stmt = $conn->prepare("SELECT city as id, city as text FROM master_city WHERE city LIKE ? ORDER BY city LIMIT 20");
             break;
         default:
-            echo json_encode([]);
-            $conn->close();
+            // Format the response correctly for Select2
+            $response = array(
+                "results" => array()
+            );
+            
+            header('Content-Type: application/json');
+            echo json_encode($response);
+            // Don't close the connection here as it's used later
             exit();
     }
     
@@ -66,19 +87,16 @@ if (isset($_GET['action']) && $_GET['action'] == 'search_master' && isset($_GET[
         $data[] = $row;
     }
     
+    // Format the response correctly for Select2
+    $response = array(
+        "results" => $data
+    );
+    
     header('Content-Type: application/json');
-    echo json_encode($data);
+    echo json_encode($response);
     $stmt->close();
-    $conn->close();
+    // Don't close the connection here as it's used later
     exit();
-}
-
-$conn = getDBConnection();
-
-// Function to compress image (simplified version without GD)
-function compressImage($source, $destination, $quality) {
-    // Simply copy the file without compression if GD is not available
-    return copy($source, $destination);
 }
 
 // Handle form submissions
@@ -281,7 +299,8 @@ $cities_result = $conn->query("SELECT * FROM master_city ORDER BY city");
 // Fetch outlets for dropdown
 $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
 
-$conn->close();
+// Don't close the connection here, we need it later
+// $conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -294,6 +313,8 @@ $conn->close();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="assets/css/styles.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 </head>
 <body>
     <!-- Permanent Sidebar Navigation -->
@@ -323,10 +344,13 @@ $conn->close();
             <?php endif; ?>
 
             <div class="row">
-                <div class="col-md-8">
+                <div class="col-md-12">
                     <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="card-title mb-0">Client List</h5>
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Client Records</h5>
+                            <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addClientModal">
+                                <i class="bi bi-plus-circle"></i> Add New Client
+                            </button>
                         </div>
                         <div class="card-body">
                             <div class="row mb-3">
@@ -335,11 +359,6 @@ $conn->close();
                                         <input type="text" name="search" class="form-control me-2" placeholder="Search clients..." value="<?php echo htmlspecialchars($search); ?>">
                                         <button class="btn btn-outline-primary" type="submit">Search</button>
                                     </form>
-                                </div>
-                                <div class="col-md-6 text-end">
-                                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addClientModal">
-                                        <i class="bi bi-plus-circle"></i> Add New Client
-                                    </button>
                                 </div>
                             </div>
                             
@@ -368,17 +387,25 @@ $conn->close();
                                                 <?php if ($client['status'] == 'Active'): ?>
                                                     <span class="badge bg-success">Active</span>
                                                 <?php else: ?>
-                                                    <span class="badge bg-danger">Inactive</span>
+                                                    <span class="badge bg-danger">Blocked</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-primary edit-client" 
                                                         data-client='<?php echo json_encode($client); ?>'>
-                                                    <i class="bi bi-pencil"></i>
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info view-client" 
+                                                        data-client='<?php echo json_encode($client); ?>'>
+                                                    <i class="bi bi-eye"></i> View
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary print-client" 
+                                                        data-client='<?php echo json_encode($client); ?>'>
+                                                    <i class="bi bi-printer"></i> Print
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-danger delete-client" 
                                                         data-id="<?php echo $client['id']; ?>">
-                                                    <i class="bi bi-trash"></i>
+                                                    <i class="bi bi-trash"></i> Delete
                                                 </button>
                                             </td>
                                         </tr>
@@ -386,45 +413,6 @@ $conn->close();
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="card-title mb-0">Quick Stats</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-6 text-center">
-                                    <h3><?php echo $clients_result->num_rows; ?></h3>
-                                    <p>Total Clients</p>
-                                </div>
-                                <div class="col-6 text-center">
-                                    <?php 
-                                    $conn = getDBConnection();
-                                    $active_result = $conn->query("SELECT COUNT(*) as count FROM clients WHERE status='Active'");
-                                    $active_count = $active_result->fetch_assoc()['count'];
-                                    $conn->close();
-                                    ?>
-                                    <h3><?php echo $active_count; ?></h3>
-                                    <p>Active Clients</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card mt-3">
-                        <div class="card-header bg-warning text-white">
-                            <h5 class="card-title mb-0">Search Tips</h5>
-                        </div>
-                        <div class="card-body">
-                            <ul>
-                                <li>Search by name, CNIC, or reference number</li>
-                                <li>Use partial matches for better results</li>
-                                <li>Sort results by clicking column headers</li>
-                            </ul>
                         </div>
                     </div>
                 </div>
@@ -475,15 +463,6 @@ $conn->close();
                                 <label for="profession" class="form-label">Profession *</label>
                                 <select class="form-control select2-master" id="profession" name="profession" data-type="profession" required>
                                     <option value="">Select Profession</option>
-                                    <?php while ($profession = $professions_result->fetch_assoc()): ?>
-                                        <option value="<?php echo htmlspecialchars($profession['profession']); ?>">
-                                            <?php echo htmlspecialchars($profession['profession']); ?>
-                                        </option>
-                                    <?php endwhile; ?>
-                                    <?php 
-                                    // Reset the result set for future use
-                                    $professions_result = $conn->query("SELECT * FROM master_profession ORDER BY profession");
-                                    ?>
                                 </select>
                             </div>
                         </div>
@@ -514,45 +493,18 @@ $conn->close();
                                 <label for="area" class="form-label">Area</label>
                                 <select class="form-control select2-master" id="area" name="area" data-type="area">
                                     <option value="">Select Area</option>
-                                    <?php while ($area = $areas_result->fetch_assoc()): ?>
-                                        <option value="<?php echo htmlspecialchars($area['area']); ?>">
-                                            <?php echo htmlspecialchars($area['area']); ?>
-                                        </option>
-                                    <?php endwhile; ?>
-                                    <?php 
-                                    // Reset the result set for future use
-                                    $areas_result = $conn->query("SELECT * FROM master_area ORDER BY area");
-                                    ?>
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="road" class="form-label">Road</label>
                                 <select class="form-control select2-master" id="road" name="road" data-type="road">
                                     <option value="">Select Road</option>
-                                    <?php while ($road = $roads_result->fetch_assoc()): ?>
-                                        <option value="<?php echo htmlspecialchars($road['road']); ?>">
-                                            <?php echo htmlspecialchars($road['road']); ?>
-                                        </option>
-                                    <?php endwhile; ?>
-                                    <?php 
-                                    // Reset the result set for future use
-                                    $roads_result = $conn->query("SELECT * FROM master_road ORDER BY road");
-                                    ?>
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="city" class="form-label">City</label>
                                 <select class="form-control select2-master" id="city" name="city" data-type="city">
                                     <option value="">Select City</option>
-                                    <?php while ($city = $cities_result->fetch_assoc()): ?>
-                                        <option value="<?php echo htmlspecialchars($city['city']); ?>">
-                                            <?php echo htmlspecialchars($city['city']); ?>
-                                        </option>
-                                    <?php endwhile; ?>
-                                    <?php 
-                                    // Reset the result set for future use
-                                    $cities_result = $conn->query("SELECT * FROM master_city ORDER BY city");
-                                    ?>
                                 </select>
                             </div>
                         </div>
@@ -562,14 +514,17 @@ $conn->close();
                                 <label for="outlet_id" class="form-label">Outlet *</label>
                                 <select class="form-control" id="outlet_id" name="outlet_id" required>
                                     <option value="">Select Outlet</option>
-                                    <?php while ($outlet = $outlets_result->fetch_assoc()): ?>
+                                    <?php 
+                                    // Get a fresh connection for the outlets dropdown
+                                    $fresh_conn = getDBConnection();
+                                    // Reset the result set
+                                    $outlets_result = $fresh_conn->query("SELECT outlet_id, outlet_name FROM outlets");
+                                    while ($outlet = $outlets_result->fetch_assoc()): ?>
                                         <option value="<?php echo htmlspecialchars($outlet['outlet_id']); ?>">
                                             <?php echo htmlspecialchars($outlet['outlet_name']); ?>
                                         </option>
-                                    <?php endwhile; ?>
-                                    <?php 
-                                    // Reset the result set for future use
-                                    $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
+                                    <?php endwhile; 
+                                    $fresh_conn->close();
                                     ?>
                                 </select>
                             </div>
@@ -577,7 +532,7 @@ $conn->close();
                                 <label for="status" class="form-label">Status *</label>
                                 <select class="form-control" id="status" name="status" required>
                                     <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
+                                    <option value="Blocked">Blocked</option>
                                 </select>
                             </div>
                         </div>
@@ -714,7 +669,7 @@ $conn->close();
                                 <label for="edit_status" class="form-label">Status *</label>
                                 <select class="form-control" id="edit_status" name="status" required>
                                     <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
+                                    <option value="Blocked">Blocked</option>
                                 </select>
                             </div>
                         </div>
@@ -737,6 +692,96 @@ $conn->close();
                         <button type="submit" class="btn btn-primary">Update Client</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Client Modal -->
+    <div class="modal fade" id="viewClientModal" tabindex="-1" aria-labelledby="viewClientModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="viewClientModalLabel">View Client Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div id="view_photo"></div>
+                        </div>
+                        <div class="col-md-8">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th>Client ID:</th>
+                                    <td id="view_client_id"></td>
+                                </tr>
+                                <tr>
+                                    <th>Full Name:</th>
+                                    <td id="view_full_name"></td>
+                                </tr>
+                                <tr>
+                                    <th>Father/Husband Name:</th>
+                                    <td id="view_father_husband_name"></td>
+                                </tr>
+                                <tr>
+                                    <th>CNIC:</th>
+                                    <td id="view_cnic"></td>
+                                </tr>
+                                <tr>
+                                    <th>Primary Mobile:</th>
+                                    <td id="view_mobile_primary"></td>
+                                </tr>
+                                <tr>
+                                    <th>Secondary Mobile:</th>
+                                    <td id="view_mobile_secondary"></td>
+                                </tr>
+                                <tr>
+                                    <th>Current Address:</th>
+                                    <td id="view_address_current"></td>
+                                </tr>
+                                <tr>
+                                    <th>Permanent Address:</th>
+                                    <td id="view_address_permanent"></td>
+                                </tr>
+                                <tr>
+                                    <th>Area:</th>
+                                    <td id="view_area"></td>
+                                </tr>
+                                <tr>
+                                    <th>Road:</th>
+                                    <td id="view_road"></td>
+                                </tr>
+                                <tr>
+                                    <th>City:</th>
+                                    <td id="view_city"></td>
+                                </tr>
+                                <tr>
+                                    <th>Profession:</th>
+                                    <td id="view_profession"></td>
+                                </tr>
+                                <tr>
+                                    <th>Manual Reference No:</th>
+                                    <td id="view_manual_reference_no"></td>
+                                </tr>
+                                <tr>
+                                    <th>Outlet:</th>
+                                    <td id="view_outlet_id"></td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td id="view_status"></td>
+                                </tr>
+                                <tr>
+                                    <th>Remarks:</th>
+                                    <td id="view_remarks"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>
@@ -764,12 +809,18 @@ $conn->close();
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="assets/js/image_handler.js"></script>
     <script src="assets/js/master_data_dropdowns.js"></script>
     <script>
+        // Initialize file upload handlers for client photos
+        $(document).ready(function() {
+            if (typeof handleFileUpload === 'function') {
+                handleFileUpload('photo_upload', 'photo_preview', 'photo_data');
+                handleFileUpload('edit_photo_upload', 'edit_photo_preview', 'edit_photo_data');
+            }
+        });
+        
         // Handle edit client button click
         document.querySelectorAll('.edit-client').forEach(button => {
             button.addEventListener('click', function() {
@@ -792,22 +843,61 @@ $conn->close();
                 document.getElementById('edit_outlet_id').value = client.outlet_id;
                 document.getElementById('edit_status').value = client.status;
                 
-                // Set selected values for dropdowns
-                if (client.profession) {
-                    $('#edit_profession').append(new Option(client.profession, client.profession, true, true));
+                // Set selected values for dropdowns using Select2
+                // Destroy existing Select2 instances first
+                $('#edit_profession, #edit_area, #edit_road, #edit_city').each(function() {
+                    if ($(this).data('select2')) {
+                        $(this).select2('destroy');
+                    }
+                });
+                
+                // Clear all dropdowns first
+                $('#edit_profession, #edit_area, #edit_road, #edit_city').html('<option value="">Select...</option>');
+                
+                // If we have values, add them as selected options
+                if (client.profession && client.profession.trim()) {
+                    $('#edit_profession').html('<option value="' + client.profession + '" selected>' + client.profession + '</option>');
+                }
+                if (client.area && client.area.trim()) {
+                    $('#edit_area').html('<option value="' + client.area + '" selected>' + client.area + '</option>');
+                }
+                if (client.road && client.road.trim()) {
+                    $('#edit_road').html('<option value="' + client.road + '" selected>' + client.road + '</option>');
+                }
+                if (client.city && client.city.trim()) {
+                    $('#edit_city').html('<option value="' + client.city + '" selected>' + client.city + '</option>');
                 }
                 
-                if (client.area) {
-                    $('#edit_area').append(new Option(client.area, client.area, true, true));
-                }
-                
-                if (client.road) {
-                    $('#edit_road').append(new Option(client.road, client.road, true, true));
-                }
-                
-                if (client.city) {
-                    $('#edit_city').append(new Option(client.city, client.city, true, true));
-                }
+                // Reinitialize Select2 with AJAX for searching additional options
+                $('#edit_profession, #edit_area, #edit_road, #edit_city').select2({
+                    placeholder: "Select or search...",
+                    allowClear: true,
+                    ajax: {
+                        url: window.location.href.split('?')[0],
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                action: 'search_master',
+                                type: $(this).data('type'),
+                                q: params.term || ''
+                            };
+                        },
+                        processResults: function (data) {
+                            // Ensure we always return {results: [...]}
+                            if (data.results && Array.isArray(data.results)) {
+                                return {
+                                    results: data.results
+                                };
+                            }
+                            return {
+                                results: data || []
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 0  // Show all results when field is focused/clicked
+                });
                 
                 // Show current photo if exists
                 if (client.photo_path) {
@@ -820,6 +910,101 @@ $conn->close();
                 // Show the modal
                 var editModal = new bootstrap.Modal(document.getElementById('editClientModal'));
                 editModal.show();
+            });
+        });
+        
+        // Handle view client button click
+        document.querySelectorAll('.view-client').forEach(button => {
+            button.addEventListener('click', function() {
+                const client = JSON.parse(this.getAttribute('data-client'));
+                
+                // Populate view fields
+                document.getElementById('view_client_id').textContent = client.client_id;
+                document.getElementById('view_full_name').textContent = client.full_name;
+                document.getElementById('view_father_husband_name').textContent = client.father_husband_name;
+                document.getElementById('view_cnic').textContent = client.cnic;
+                document.getElementById('view_mobile_primary').textContent = client.mobile_primary;
+                document.getElementById('view_mobile_secondary').textContent = client.mobile_secondary;
+                document.getElementById('view_address_current').textContent = client.address_current;
+                document.getElementById('view_address_permanent').textContent = client.address_permanent;
+                document.getElementById('view_area').textContent = client.area;
+                document.getElementById('view_road').textContent = client.road;
+                document.getElementById('view_city').textContent = client.city;
+                document.getElementById('view_profession').textContent = client.profession;
+                document.getElementById('view_manual_reference_no').textContent = client.manual_reference_no;
+                document.getElementById('view_outlet_id').textContent = client.outlet_id;
+                document.getElementById('view_remarks').textContent = client.remarks;
+                
+                // Status badge
+                if (client.status == 'Active') {
+                    document.getElementById('view_status').innerHTML = '<span class="badge bg-success">Active</span>';
+                } else {
+                    document.getElementById('view_status').innerHTML = '<span class="badge bg-danger">Blocked</span>';
+                }
+                
+                // Show photo if exists
+                if (client.photo_path) {
+                    document.getElementById('view_photo').innerHTML = 
+                        '<img src="' + client.photo_path + '" class="img-fluid" alt="Client Photo">';
+                } else {
+                    document.getElementById('view_photo').innerHTML = '<p>No photo available</p>';
+                }
+                
+                // Show the modal
+                var viewModal = new bootstrap.Modal(document.getElementById('viewClientModal'));
+                viewModal.show();
+            });
+        });
+        
+        // Handle print client button click
+        document.querySelectorAll('.print-client').forEach(button => {
+            button.addEventListener('click', function() {
+                const client = JSON.parse(this.getAttribute('data-client'));
+                
+                // Create a printable window
+                var printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Client Details - ${client.full_name}</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; margin: 20px; }
+                                .header { text-align: center; margin-bottom: 20px; }
+                                .client-info { margin-bottom: 15px; }
+                                .label { font-weight: bold; display: inline-block; width: 200px; }
+                                .photo { text-align: center; margin: 20px 0; }
+                                .photo img { max-width: 200px; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="header">
+                                <h2>Client Details</h2>
+                                <h3>${client.full_name}</h3>
+                            </div>
+                            <div class="photo">
+                                ${client.photo_path ? `<img src="${client.photo_path}" alt="Client Photo">` : '<p>No photo available</p>'}
+                            </div>
+                            <div class="client-info"><span class="label">Client ID:</span> ${client.client_id}</div>
+                            <div class="client-info"><span class="label">Full Name:</span> ${client.full_name}</div>
+                            <div class="client-info"><span class="label">Father/Husband Name:</span> ${client.father_husband_name}</div>
+                            <div class="client-info"><span class="label">CNIC:</span> ${client.cnic}</div>
+                            <div class="client-info"><span class="label">Primary Mobile:</span> ${client.mobile_primary}</div>
+                            <div class="client-info"><span class="label">Secondary Mobile:</span> ${client.mobile_secondary || 'N/A'}</div>
+                            <div class="client-info"><span class="label">Current Address:</span> ${client.address_current}</div>
+                            <div class="client-info"><span class="label">Permanent Address:</span> ${client.address_permanent}</div>
+                            <div class="client-info"><span class="label">Area:</span> ${client.area || 'N/A'}</div>
+                            <div class="client-info"><span class="label">Road:</span> ${client.road || 'N/A'}</div>
+                            <div class="client-info"><span class="label">City:</span> ${client.city || 'N/A'}</div>
+                            <div class="client-info"><span class="label">Profession:</span> ${client.profession}</div>
+                            <div class="client-info"><span class="label">Manual Reference No:</span> ${client.manual_reference_no || 'N/A'}</div>
+                            <div class="client-info"><span class="label">Outlet:</span> ${client.outlet_id}</div>
+                            <div class="client-info"><span class="label">Status:</span> ${client.status}</div>
+                            <div class="client-info"><span class="label">Remarks:</span> ${client.remarks || 'N/A'}</div>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
             });
         });
         
@@ -836,3 +1021,7 @@ $conn->close();
     </script>
 </body>
 </html>
+<?php
+// Close the database connection at the very end
+$conn->close();
+?>

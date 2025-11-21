@@ -29,27 +29,27 @@ $user_role = $_SESSION['role'] ?? 'User';
         <div class="collapse" id="masterSettings">
           <div class="nav flex-column ms-4">
             <div class="nav-item">
-              <a class="nav-link" href="master_settings.php#profession">
+              <a class="nav-link" href="profession.php">
                 <i class="bi bi-briefcase me-2"></i>Profession
               </a>
             </div>
             <div class="nav-item">
-              <a class="nav-link" href="master_settings.php#area">
+              <a class="nav-link" href="area.php">
                 <i class="bi bi-map me-2"></i>Area
               </a>
             </div>
             <div class="nav-item">
-              <a class="nav-link" href="master_settings.php#road">
+              <a class="nav-link" href="road.php">
                 <i class="bi bi-signpost me-2"></i>Road
               </a>
             </div>
             <div class="nav-item">
-              <a class="nav-link" href="master_settings.php#city">
+              <a class="nav-link" href="city.php">
                 <i class="bi bi-building me-2"></i>City
               </a>
             </div>
             <div class="nav-item">
-              <a class="nav-link" href="recovery_persons.php">
+              <a class="nav-link" href="recovery_person.php">
                 <i class="bi bi-person-badge me-2"></i>Recovery Person
               </a>
             </div>
@@ -314,7 +314,7 @@ $user_role = $_SESSION['role'] ?? 'User';
               </a>
             </div>
             <div class="nav-item">
-              <a class="nav-link" href="master_settings.php">
+              <a class="nav-link" href="profession.php">
                 <i class="bi bi-gear me-2"></i>System Configuration
               </a>
             </div>

@@ -776,67 +776,6 @@ $conn->close();
             
             // Initialize date calculations
             document.getElementById('lease_term_months').dispatchEvent(new Event('change'));
-            
-            // Custom client select2 with additional information
-            $('.select2-client').select2({
-                placeholder: "Search and select client...",
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: 'lease_registration.php',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function (params) {
-                        return {
-                            q: params.term,
-                            action: 'search'
-                        };
-                    },
-                    processResults: function (data) {
-                        return {
-                            results: $.map(data, function(item) {
-                                // Format the display text with additional information
-                                var displayText = item.full_name;
-                                if (item.father_husband_name || item.mobile_primary || item.address_current) {
-                                    displayText += ' <div class="client-info">';
-                                    if (item.father_husband_name) {
-                                        displayText += 'Father/Husband: ' + item.father_husband_name + '<br>';
-                                    }
-                                    if (item.mobile_primary) {
-                                        displayText += 'Phone: ' + item.mobile_primary + '<br>';
-                                    }
-                                    if (item.address_current) {
-                                        displayText += 'Address: ' + item.address_current;
-                                    }
-                                    displayText += '</div>';
-                                }
-                                
-                                return {
-                                    id: item.client_id,
-                                    text: displayText,
-                                    title: item.full_name // Keep the original name for title
-                                };
-                            })
-                        };
-                    },
-                    cache: true
-                },
-                minimumInputLength: 1,
-                templateResult: function(data) {
-                    // Format the result display
-                    if (!data.id) {
-                        return data.text;
-                    }
-                    return $('<span>' + data.text + '</span>');
-                },
-                templateSelection: function(data) {
-                    // Format the selection display (just show the name)
-                    if (!data.id) {
-                        return data.text;
-                    }
-                    return data.title || data.text;
-                }
-            });
         });
         
         // Function to use transaction data

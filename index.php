@@ -42,10 +42,10 @@ require_once 'config/db.php';
                         <a class="nav-link" href="collections.php">Collections</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="master_settings.php">Master Settings</a>
+                        <a class="nav-link" href="profession.php">Master Settings</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="recovery_persons.php">Recovery Persons</a>
+                        <a class="nav-link" href="recovery_person.php">Recovery Persons</a>
                     </li>
                     <?php if (isset($_SESSION['user_id'])): ?>
                         <li class="nav-item">

@@ -331,10 +331,7 @@ $conn->close();
     <link href="assets/css/styles.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Permanent Sidebar Navigation -->
-    <?php include 'includes/permanent_sidebar.php'; ?>
-
-    <div class="main-content" style="margin-left: 250px; padding: 20px;">
+    <div class="main-content" style="margin-left: 0; padding: 20px;">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h1 class="h3 mb-1"><i class="bi bi-gear me-2"></i>Master Settings</h1>
@@ -366,16 +363,19 @@ $conn->close();
                 <!-- Tabs for different master settings -->
                 <ul class="nav nav-tabs" id="masterSettingsTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="profession-tab" data-bs-toggle="tab" data-bs-target="#profession" type="button" role="tab">Profession</button>
+                        <button class="nav-link <?php echo $active_tab == 'profession' ? 'active' : ''; ?>" id="profession-tab" data-bs-toggle="tab" data-bs-target="#profession" type="button" role="tab">Profession</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="area-tab" data-bs-toggle="tab" data-bs-target="#area" type="button" role="tab">Area</button>
+                        <button class="nav-link <?php echo $active_tab == 'area' ? 'active' : ''; ?>" id="area-tab" data-bs-toggle="tab" data-bs-target="#area" type="button" role="tab">Area</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="road-tab" data-bs-toggle="tab" data-bs-target="#road" type="button" role="tab">Road</button>
+                        <button class="nav-link <?php echo $active_tab == 'road' ? 'active' : ''; ?>" id="road-tab" data-bs-toggle="tab" data-bs-target="#road" type="button" role="tab">Road</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="city-tab" data-bs-toggle="tab" data-bs-target="#city" type="button" role="tab">City</button>
+                        <button class="nav-link <?php echo $active_tab == 'city' ? 'active' : ''; ?>" id="city-tab" data-bs-toggle="tab" data-bs-target="#city" type="button" role="tab">City</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link <?php echo $active_tab == 'recovery-person' ? 'active' : ''; ?>" id="recovery-person-tab" data-bs-toggle="tab" data-bs-target="#recovery-person" type="button" role="tab">Recovery</button>
                     </li>
                 </ul>
                 
@@ -392,7 +392,7 @@ $conn->close();
                                     <input type="hidden" name="tab" value="profession">
                                     <div class="row">
                                         <div class="col-md-8">
-                                            <input type="text" class="form-control" name="search" placeholder="Search professions..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                                            <input type="text" class="form-control" name="search" placeholder="Search professions..." value="<?php echo isset($_GET['search']) && $active_tab == 'profession' ? htmlspecialchars($_GET['search']) : ''; ?>">
                                         </div>
                                         <div class="col-md-4">
                                             <div class="btn-group" role="group">
@@ -470,7 +470,7 @@ $conn->close();
                                     <input type="hidden" name="tab" value="area">
                                     <div class="row">
                                         <div class="col-md-8">
-                                            <input type="text" class="form-control" name="search" placeholder="Search areas..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                                            <input type="text" class="form-control" name="search" placeholder="Search areas..." value="<?php echo isset($_GET['search']) && $active_tab == 'area' ? htmlspecialchars($_GET['search']) : ''; ?>">
                                         </div>
                                         <div class="col-md-4">
                                             <div class="btn-group" role="group">
@@ -548,7 +548,7 @@ $conn->close();
                                     <input type="hidden" name="tab" value="road">
                                     <div class="row">
                                         <div class="col-md-8">
-                                            <input type="text" class="form-control" name="search" placeholder="Search roads..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                                            <input type="text" class="form-control" name="search" placeholder="Search roads..." value="<?php echo isset($_GET['search']) && $active_tab == 'road' ? htmlspecialchars($_GET['search']) : ''; ?>">
                                         </div>
                                         <div class="col-md-4">
                                             <div class="btn-group" role="group">
@@ -569,8 +569,12 @@ $conn->close();
                                         <div class="col-md-5">
                                             <select class="form-select" name="area_id" id="road-area-id" required>
                                                 <option value="">Select Area</option>
-                                                <?php if ($areas_dropdown && $areas_dropdown->num_rows > 0): ?>
-                                                    <?php while ($area = $areas_dropdown->fetch_assoc()): ?>
+                                                <?php
+                                                // Re-fetch areas for dropdown since we might have already iterated through it
+                                                // Store the current pointer position
+                                                $areas_for_road = $conn->query("SELECT * FROM master_area ORDER BY area");
+                                                if ($areas_for_road && $areas_for_road->num_rows > 0):
+                                                    while ($area = $areas_for_road->fetch_assoc()): ?>
                                                         <option value="<?php echo $area['id']; ?>"><?php echo htmlspecialchars($area['area']); ?></option>
                                                     <?php endwhile; ?>
                                                 <?php endif; ?>
@@ -639,7 +643,7 @@ $conn->close();
                                     <input type="hidden" name="tab" value="city">
                                     <div class="row">
                                         <div class="col-md-8">
-                                            <input type="text" class="form-control" name="search" placeholder="Search cities..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                                            <input type="text" class="form-control" name="search" placeholder="Search cities..." value="<?php echo isset($_GET['search']) && $active_tab == 'city' ? htmlspecialchars($_GET['search']) : ''; ?>">
                                         </div>
                                         <div class="col-md-4">
                                             <div class="btn-group" role="group">
@@ -717,7 +721,7 @@ $conn->close();
                                     <input type="hidden" name="tab" value="recovery-person">
                                     <div class="row">
                                         <div class="col-md-8">
-                                            <input type="text" class="form-control" name="search" placeholder="Search recovery persons..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                                            <input type="text" class="form-control" name="search" placeholder="Search recovery persons..." value="<?php echo isset($_GET['search']) && $active_tab == 'recovery-person' ? htmlspecialchars($_GET['search']) : ''; ?>">
                                         </div>
                                         <div class="col-md-4">
                                             <div class="btn-group" role="group">
@@ -898,7 +902,7 @@ $conn->close();
                                                             </button>
                                                             <button class="btn btn-sm btn-outline-danger delete-recovery-person-btn" 
                                                                     data-id="<?php echo $person['id']; ?>"
-                                                                    data-name="<?php echo htmlspecialchars($person['full_name']); ?>">
+                                                                    data-full_name="<?php echo htmlspecialchars($person['full_name']); ?>">
                                                                 Delete
                                                             </button>
                                                         </td>
@@ -1035,6 +1039,21 @@ $conn->close();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
+        // Automatically expand the master settings section in the sidebar when on this page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if we're on the master_settings.php page
+            if (window.location.pathname.includes('master_settings.php')) {
+                // Expand the master settings section in the sidebar
+                const masterSettingsCollapse = document.getElementById('masterSettings');
+                if (masterSettingsCollapse) {
+                    // Use Bootstrap's collapse functionality
+                    const collapseInstance = new bootstrap.Collapse(masterSettingsCollapse, {
+                        toggle: false
+                    });
+                    collapseInstance.show();
+                }
+            }
+        });
         // Initialize Select2 on all select elements
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize Select2 on all select elements with search functionality
@@ -1046,6 +1065,32 @@ $conn->close();
             
             // Handle file upload for recovery person
             handleFileUpload('rp-photo-upload', 'rp-photo-preview');
+            
+            // Add event listeners for tab navigation
+            document.querySelectorAll('.nav-link').forEach(function(tab) {
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Use Bootstrap tab functionality
+                    const tabInstance = new bootstrap.Tab(this);
+                    tabInstance.show();
+                });
+            });
+            
+            // Add Back to Dashboard button
+            const backButton = document.createElement('button');
+            backButton.className = 'btn btn-secondary ms-2';
+            backButton.innerHTML = '<i class="bi bi-arrow-left-circle me-1"></i>Back to Dashboard';
+            backButton.onclick = function() {
+                window.location.href = 'dashboard.php';
+            };
+            
+            // Add the button to the header
+            const headerDiv = document.querySelector('.d-flex.justify-content-between.align-items-center');
+            if (headerDiv) {
+                const buttonContainer = document.createElement('div');
+                buttonContainer.appendChild(backButton);
+                headerDiv.appendChild(buttonContainer);
+            }
         });
         
         // Pass PHP data to JavaScript
@@ -1251,14 +1296,93 @@ $conn->close();
             });
         });
         
-        // Activate tab based on URL parameter
+        // Edit Recovery Person Button
+        document.querySelectorAll('.edit-recovery-person-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const recovery_person_id = this.getAttribute('data-recovery_person_id');
+                const full_name = this.getAttribute('data-full_name');
+                const cnic = this.getAttribute('data-cnic');
+                const mobile_number = this.getAttribute('data-mobile_number');
+                const address = this.getAttribute('data-address');
+                const city_id = this.getAttribute('data-city_id');
+                const area_id = this.getAttribute('data-area_id');
+                const email = this.getAttribute('data-email');
+                const outlet_id = this.getAttribute('data-outlet_id');
+                const status = this.getAttribute('data-status');
+                
+                // Populate form fields
+                document.getElementById('recovery-person-id').value = id;
+                document.getElementById('recovery_person_id').value = recovery_person_id;
+                document.getElementById('full_name').value = full_name;
+                document.getElementById('cnic').value = cnic;
+                document.getElementById('mobile_number').value = mobile_number;
+                document.getElementById('address').value = address;
+                document.getElementById('city_id').value = city_id;
+                document.getElementById('area_id').value = area_id;
+                document.getElementById('email').value = email;
+                document.getElementById('outlet_id').value = outlet_id;
+                document.getElementById('status').value = status;
+                
+                // Show update buttons and hide add button
+                document.getElementById('recovery-person-submit-btn').style.display = 'none';
+                document.getElementById('recovery-person-update-btn').style.display = 'inline-block';
+                document.getElementById('recovery-person-cancel-btn').style.display = 'inline-block';
+                
+                // Scroll to the form
+                document.getElementById('recovery-person-form').scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+        
+        // Cancel Recovery Person Edit
+        document.getElementById('recovery-person-cancel-btn').addEventListener('click', function() {
+            // Reset form
+            document.getElementById('recovery-person-form').reset();
+            document.getElementById('recovery-person-id').value = '';
+            
+            // Show add button and hide update buttons
+            document.getElementById('recovery-person-submit-btn').style.display = 'inline-block';
+            document.getElementById('recovery-person-update-btn').style.display = 'none';
+            this.style.display = 'none';
+        });
+        
+        // Delete Recovery Person Button
+        document.querySelectorAll('.delete-recovery-person-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-full_name');
+                
+                document.getElementById('delete-recovery-person-id').value = id;
+                document.getElementById('delete-recovery-person-name').textContent = name;
+                
+                var deleteModal = new bootstrap.Modal(document.getElementById('deleteRecoveryPersonModal'));
+                deleteModal.show();
+            });
+        });
+        
+        // Activate tab based on URL parameter or fragment identifier
         const urlParams = new URLSearchParams(window.location.search);
-        const tab = urlParams.get('tab');
+        let tab = urlParams.get('tab');
+        
+        // If no tab parameter, check for fragment identifier
+        if (!tab && window.location.hash) {
+            tab = window.location.hash.substring(1); // Remove the # symbol
+        }
+        
         if (tab) {
+            // Find the tab button and activate it using Bootstrap
             const tabButton = document.querySelector(`button[data-bs-target="#${tab}"]`);
             if (tabButton) {
-                const tab = new bootstrap.Tab(tabButton);
-                tab.show();
+                // Use Bootstrap tab functionality
+                const tabInstance = new bootstrap.Tab(tabButton);
+                tabInstance.show();
+            }
+        } else {
+            // Default to profession tab if no tab specified
+            const defaultTabButton = document.querySelector('button[data-bs-target="#profession"]');
+            if (defaultTabButton) {
+                const tabInstance = new bootstrap.Tab(defaultTabButton);
+                tabInstance.show();
             }
         }
     </script>

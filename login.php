@@ -89,6 +89,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary">Sign In</button>
                             </div>
+                            <div class="text-center mt-3">
+                                <a href="reset_password.php">Forgot Password?</a>
+                            </div>
                         </form>
                     </div>
                     <div class="card-footer text-center">

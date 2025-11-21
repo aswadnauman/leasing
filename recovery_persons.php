@@ -45,12 +45,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'search' && isset($_GET['q'])) 
 
 $conn = getDBConnection();
 
-// Function to compress image (simplified version without GD)
-function compressImage($source, $destination, $quality) {
-    // Simply copy the file without compression if GD is not available
-    return copy($source, $destination);
-}
-
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['add_recovery_person'])) {
@@ -69,46 +63,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $photo_path = null;
         if (isset($_POST['photo_data']) && !empty($_POST['photo_data'])) {
             $photo_data = $_POST['photo_data'];
-            // Remove data URL prefix
-            $photo_data = substr($photo_data, strpos($photo_data, ',') + 1);
-            $photo_data = base64_decode($photo_data);
             
-            // Create uploads directory if it doesn't exist
-            $upload_dir = 'uploads/recovery_persons/';
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
+            // Remove data URL prefix if present
+            if (strpos($photo_data, 'data:image') === 0) {
+                $comma_pos = strpos($photo_data, ',');
+                if ($comma_pos !== false) {
+                    $photo_data = substr($photo_data, $comma_pos + 1);
+                }
             }
             
-            // Generate unique filename
-            $filename = 'rp_' . $recovery_person_id . '_photo.jpg';
-            $temp_path = $upload_dir . 'temp_' . $filename;
-            $photo_path = $upload_dir . $filename;
+            // Decode base64 data
+            $decoded_data = base64_decode($photo_data, true);
             
-            // Save temporary photo
-            file_put_contents($temp_path, $photo_data);
-            
-            // Try to compress image to <= 20KB
-            $quality = 70; // Start with 70% quality
-            $compression_success = false;
-            while (filesize($temp_path) > 20480 && $quality > 10) { // 20KB = 20480 bytes
-                $compression_success = compressImage($temp_path, $photo_path, $quality);
-                if (!$compression_success) break; // Stop if compression fails
-                $quality -= 10;
+            // Validate that we have data
+            if ($decoded_data !== false && strlen($decoded_data) > 0) {
+                // Create uploads directory if it doesn't exist
+                $upload_dir = 'uploads/recovery_persons/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                // Generate unique filename using the recovery_person_id from POST
+                $filename = 'rp_' . $recovery_person_id . '_photo.jpg';
+                $photo_path = $upload_dir . $filename;
+                
+                // Save photo and check if it was successful
+                $bytes_written = file_put_contents($photo_path, $decoded_data);
+                if ($bytes_written === false || $bytes_written === 0) {
+                    // Handle error if needed
+                    $photo_path = null;
+                }
             }
-            
-            // If compression was successful and file is still too large, use the compressed version
-            if ($compression_success && filesize($photo_path) > 20480) {
-                // Simply keep the compressed version without resizing
-                // This is a simplified approach when GD is not available
-            } else if (!$compression_success) {
-                // If compression failed, just copy the original file
-                copy($temp_path, $photo_path);
-            }
-            
-            // Clean up temp file
-            unlink($temp_path);
         }
-        
+            
         $stmt = $conn->prepare("INSERT INTO recovery_persons (recovery_person_id, full_name, cnic, mobile_number, address, city_id, area_id, email, outlet_id, photo_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("sssssiissis", $recovery_person_id, $full_name, $cnic, $mobile_number, $address, $city_id, $area_id, $email, $outlet_id, $photo_path, $status);
         
@@ -140,44 +127,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $photo_path = $_POST['existing_photo_path']; // Keep existing photo by default
         if (isset($_POST['photo_data']) && !empty($_POST['photo_data'])) {
             $photo_data = $_POST['photo_data'];
-            // Remove data URL prefix
-            $photo_data = substr($photo_data, strpos($photo_data, ',') + 1);
-            $photo_data = base64_decode($photo_data);
             
-            // Create uploads directory if it doesn't exist
-            $upload_dir = 'uploads/recovery_persons/';
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
+            // Remove data URL prefix if present
+            if (strpos($photo_data, 'data:image') === 0) {
+                $comma_pos = strpos($photo_data, ',');
+                if ($comma_pos !== false) {
+                    $photo_data = substr($photo_data, $comma_pos + 1);
+                }
             }
             
-            // Generate unique filename
-            $filename = 'rp_' . $_POST['recovery_person_id'] . '_photo.jpg';
-            $temp_path = $upload_dir . 'temp_' . $filename;
-            $photo_path = $upload_dir . $filename;
+            // Decode base64 data
+            $decoded_data = base64_decode($photo_data, true);
             
-            // Save temporary photo
-            file_put_contents($temp_path, $photo_data);
-            
-            // Try to compress image to <= 20KB
-            $quality = 70; // Start with 70% quality
-            $compression_success = false;
-            while (filesize($temp_path) > 20480 && $quality > 10) { // 20KB = 20480 bytes
-                $compression_success = compressImage($temp_path, $photo_path, $quality);
-                if (!$compression_success) break; // Stop if compression fails
-                $quality -= 10;
+            // Validate that we have data
+            if ($decoded_data !== false && strlen($decoded_data) > 0) {
+                // Create uploads directory if it doesn't exist
+                $upload_dir = 'uploads/recovery_persons/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                // Generate unique filename using the recovery_person_id from POST
+                $filename = 'rp_' . ($_POST['recovery_person_id'] ?? 'unknown') . '_photo.jpg';
+                $photo_path = $upload_dir . $filename;
+                
+                // Save photo and check if it was successful
+                $bytes_written = file_put_contents($photo_path, $decoded_data);
+                if ($bytes_written === false || $bytes_written === 0) {
+                    // Handle error if needed
+                    $photo_path = $_POST['existing_photo_path']; // Revert to existing photo on error
+                }
             }
-            
-            // If compression was successful and file is still too large, use the compressed version
-            if ($compression_success && filesize($photo_path) > 20480) {
-                // Simply keep the compressed version without resizing
-                // This is a simplified approach when GD is not available
-            } else if (!$compression_success) {
-                // If compression failed, just copy the original file
-                copy($temp_path, $photo_path);
-            }
-            
-            // Clean up temp file
-            unlink($temp_path);
+        } elseif (empty($_POST['existing_photo_path'])) {
+            // If no photo data and no existing photo, set to null
+            $photo_path = null;
         }
         
         // Check if CNIC is being changed and if it already exists for another recovery person
@@ -385,7 +368,7 @@ $conn->close();
                                                         <label for="rp-photo-upload" class="form-label">Upload Photo</label>
                                                         <input type="file" class="form-control" id="rp-photo-upload" accept="image/*">
                                                         <div class="form-text">JPG or PNG format, automatically optimized to ≤ 20KB</div>
-                                                        <img id="rp-photo-preview" src="" alt="Photo Preview" style="display: none; max-width: 100%; height: 150px; margin-top: 10px;">
+                                                        <img id="rp-photo-preview" src="" alt="Photo Preview" style="display: none; max-width: 100%; height: 150px; margin-top: 10px; border: 1px solid #ddd; border-radius: 4px;">
                                                     </div>
                                                 </div>
                                             </div>
@@ -428,8 +411,8 @@ $conn->close();
                                         <?php while ($person = $recovery_persons_result->fetch_assoc()): ?>
                                             <tr>
                                                 <td>
-                                                    <?php if (!empty($person['photo_path']) && file_exists($person['photo_path'])): ?>
-                                                        <img src="<?php echo htmlspecialchars($person['photo_path']); ?>" alt="Photo" width="50" height="50" class="rounded">
+                                                    <?php if (!empty($person['photo_path']) && file_exists($person['photo_path']) && filesize($person['photo_path']) > 0): ?>
+                                                        <img src="<?php echo htmlspecialchars($person['photo_path']); ?>" alt="Photo" width="50" height="50" class="rounded" onerror="this.onerror=null;this.src='assets/images/no-photo.png';">
                                                     <?php else: ?>
                                                         <div class="bg-light border rounded" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
                                                             <span class="text-muted">No Photo</span>
@@ -444,8 +427,8 @@ $conn->close();
                                                 <td><?php echo htmlspecialchars($person['area_name'] ?? 'N/A'); ?></td>
                                                 <td><?php echo htmlspecialchars($person['outlet_name'] ?? 'N/A'); ?></td>
                                                 <td>
-                                                    <span class="badge bg-<?php echo $person['status'] == 'Active' ? 'success' : 'secondary'; ?>">
-                                                        <?php echo htmlspecialchars($person['status']); ?>
+                                                    <span class="badge bg-<?php echo $person['status'] == 1 ? 'success' : 'secondary'; ?>">
+                                                        <?php echo $person['status'] == 1 ? 'Active' : 'Inactive'; ?>
                                                     </span>
                                                 </td>
                                                 <td>
@@ -460,7 +443,7 @@ $conn->close();
                                                             data-area_id="<?php echo $person['area_id'] ?? ''; ?>"
                                                             data-email="<?php echo htmlspecialchars($person['email']); ?>"
                                                             data-outlet_id="<?php echo htmlspecialchars($person['outlet_id']); ?>"
-                                                            data-status="<?php echo $person['status'] == 'Active' ? 1 : 0; ?>"
+                                                            data-status="<?php echo $person['status']; ?>"
                                                             data-photo_path="<?php echo htmlspecialchars($person['photo_path']); ?>">
                                                         Edit
                                                     </button>
@@ -514,6 +497,7 @@ $conn->close();
         </div>
     </footer>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="assets/js/image_handler.js"></script>
@@ -549,11 +533,20 @@ $conn->close();
             const imageData = getOptimizedImageData('rp-photo-preview');
             if (imageData) {
                 document.getElementById('rp-photo-data').value = imageData;
+                console.log("Image data captured for submission");
+            } else {
+                console.log("No valid image data to submit");
             }
         });
         
         // Update button functionality
         document.getElementById('rp-update-btn').addEventListener('click', function() {
+            // Get optimized image data
+            const imageData = getOptimizedImageData('rp-photo-preview');
+            if (imageData) {
+                document.getElementById('rp-photo-data').value = imageData;
+            }
+            
             // Change the form submission to use update
             const form = document.getElementById('recovery-person-form');
             const updateInput = document.createElement('input');
@@ -562,6 +555,28 @@ $conn->close();
             updateInput.value = '1';
             form.appendChild(updateInput);
             form.submit();
+        });
+        
+        // Cancel button functionality for recovery person
+        document.getElementById('rp-cancel-btn').addEventListener('click', function() {
+            // Reset form
+            document.getElementById('recovery-person-form').reset();
+            document.getElementById('rp-id').value = '';
+            document.getElementById('recovery_person_id').value = '';
+            document.getElementById('recovery_person_id').readOnly = false;
+            document.getElementById('rp-existing-photo-path').value = '';
+            document.getElementById('rp-photo-data').value = '';
+            document.getElementById('rp-photo-preview').style.display = 'none';
+            
+            // Reset Select2 dropdowns
+            $('#city_id').val('').trigger('change');
+            $('#area_id').val('').trigger('change');
+            $('#outlet_id').val('').trigger('change');
+            
+            // Reset form title and submit button
+            document.querySelector('[name="add_recovery_person"]').style.display = 'inline-block';
+            document.getElementById('rp-update-btn').style.display = 'none';
+            this.style.display = 'none';
         });
         
         // Edit Recovery Person Button
@@ -588,43 +603,41 @@ $conn->close();
                 document.getElementById('cnic').value = cnic;
                 document.getElementById('mobile_number').value = mobile_number;
                 document.getElementById('address').value = address;
-                document.getElementById('city_id').value = city_id;
-                document.getElementById('area_id').value = area_id;
                 document.getElementById('email').value = email;
-                document.getElementById('outlet_id').value = outlet_id;
                 document.getElementById('status').value = status;
-                document.getElementById('rp-existing-photo-path').value = photo_path;
+                document.getElementById('rp-existing-photo-path').value = photo_path || '';
+                
+                // Set dropdown values and trigger Select2 update
+                const citySelect = document.getElementById('city_id');
+                const areaSelect = document.getElementById('area_id');
+                const outletSelect = document.getElementById('outlet_id');
+                
+                citySelect.value = city_id || '';
+                areaSelect.value = area_id || '';
+                outletSelect.value = outlet_id || '';
+                
+                // Trigger Select2 to update the display
+                $('#city_id').trigger('change');
+                $('#area_id').trigger('change');
+                $('#outlet_id').trigger('change');
                 
                 // Show existing photo if available
-                if (photo_path && photo_path !== '') {
-                    document.getElementById('rp-photo-preview').src = photo_path;
-                    document.getElementById('rp-photo-preview').style.display = 'block';
+                const photoPreview = document.getElementById('rp-photo-preview');
+                if (photo_path && photo_path !== '' && photo_path !== 'null') {
+                    photoPreview.src = photo_path;
+                    photoPreview.style.display = 'block';
                 } else {
-                    document.getElementById('rp-photo-preview').style.display = 'none';
+                    photoPreview.style.display = 'none';
                 }
                 
                 // Change form title and submit button
                 document.querySelector('[name="add_recovery_person"]').style.display = 'none';
                 document.getElementById('rp-update-btn').style.display = 'inline-block';
                 document.getElementById('rp-cancel-btn').style.display = 'inline-block';
+                
+                // Scroll to the form
+                document.getElementById('recovery-person-form').scrollIntoView({ behavior: 'smooth' });
             });
-        });
-        
-        // Cancel button functionality for recovery person
-        document.getElementById('rp-cancel-btn').addEventListener('click', function() {
-            // Reset form
-            document.getElementById('recovery-person-form').reset();
-            document.getElementById('rp-id').value = '';
-            document.getElementById('recovery_person_id').value = '';
-            document.getElementById('recovery_person_id').readOnly = false;
-            document.getElementById('rp-existing-photo-path').value = '';
-            document.getElementById('rp-photo-data').value = '';
-            document.getElementById('rp-photo-preview').style.display = 'none';
-            
-            // Reset form title and submit button
-            document.querySelector('[name="add_recovery_person"]').style.display = 'inline-block';
-            document.getElementById('rp-update-btn').style.display = 'none';
-            this.style.display = 'none';
         });
         
         // Delete Recovery Person Button
@@ -641,9 +654,5 @@ $conn->close();
             });
         });
     </script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="assets/js/image_handler.js"></script>
 </body>
 </html>
