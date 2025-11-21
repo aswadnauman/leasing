@@ -669,9 +669,125 @@ $conn->close();
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="assets/js/master_data_dropdowns.js"></script>
+    <!-- DON'T include master_data_dropdowns.js here - we'll initialize dropdowns manually per form -->
     <script>
+        // Helper function to escape HTML and prevent XSS
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Select2 for Outlet dropdown (.select2-master)
+            $('.select2-master').each(function() {
+                $(this).select2({
+                    placeholder: "Select...",
+                    allowClear: true,
+                    ajax: {
+                        url: window.location.href.split('?')[0],
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                action: 'search_master',
+                                type: $(this).data('type') || 'outlet',
+                                q: params.term || ''
+                            };
+                        },
+                        processResults: function (data) {
+                            if (!data) return { results: [] };
+                            var results = data.results || data;
+                            return { results: Array.isArray(results) ? results : [] };
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            });
+            
+            // Initialize Select2 for Client dropdowns (.select2-client)
+            $('.select2-client').each(function() {
+                $(this).select2({
+                    placeholder: "Search and select client...",
+                    allowClear: true,
+                    ajax: {
+                        url: window.location.href.split('?')[0],
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                action: 'search_master',
+                                type: 'client',
+                                q: params.term || ''
+                            };
+                        },
+                        processResults: function (data) {
+                            if (!data) return { results: [] };
+                            var results = data.results || data;
+                            return { results: Array.isArray(results) ? results : [] };
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            });
+            
+            // Initialize Select2 for Recovery Officer dropdowns (.select2-recovery)
+            $('.select2-recovery').each(function() {
+                $(this).select2({
+                    placeholder: "Search and select recovery person...",
+                    allowClear: true,
+                    ajax: {
+                        url: window.location.href.split('?')[0],
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                action: 'search_master',
+                                type: 'recovery_person',
+                                q: params.term || ''
+                            };
+                        },
+                        processResults: function (data) {
+                            if (!data) return { results: [] };
+                            var results = data.results || data;
+                            return { results: Array.isArray(results) ? results : [] };
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            });
+            
+            // Initialize Select2 for Product dropdowns (.select2-product)
+            $('.select2-product').each(function() {
+                $(this).select2({
+                    placeholder: "Search and select product...",
+                    allowClear: true,
+                    dropdownParent: $(this).closest('.product-row'),
+                    ajax: {
+                        url: window.location.href.split('?')[0],
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                action: 'search_master',
+                                type: 'product',
+                                q: params.term || ''
+                            };
+                        },
+                        processResults: function (data) {
+                            if (!data) return { results: [] };
+                            var results = data.results || data;
+                            return { results: Array.isArray(results) ? results : [] };
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            });
             // Update end date when lease term changes
             document.getElementById('lease_term_months').addEventListener('change', function() {
                 var startDate = new Date(document.getElementById('start_date').value);
@@ -742,6 +858,13 @@ $conn->close();
                 // Clone the product row template
                 var newRow = $('.product-row:first').clone();
                 
+                // Destroy any existing Select2 instances in the cloned row
+                newRow.find('.select2-product').each(function() {
+                    if ($(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2('destroy');
+                    }
+                });
+                
                 // Clear the values in the new row
                 newRow.find('select').val(null).trigger('change');
                 newRow.find('input').val('');
@@ -753,24 +876,25 @@ $conn->close();
                 newRow.find('.select2-product').select2({
                     placeholder: "Search and select product...",
                     allowClear: true,
+                    dropdownParent: newRow,
                     ajax: {
-                        url: 'products.php',
+                        url: window.location.href.split('?')[0],
                         dataType: 'json',
                         delay: 250,
                         data: function (params) {
                             return {
-                                action: 'select2_search',
-                                q: params.term
+                                action: 'search_master',
+                                type: 'product',
+                                q: params.term || ''
                             };
                         },
                         processResults: function (data) {
-                            return {
-                                results: data
-                            };
-                        },
-                        cache: true
+                            if (!data) return { results: [] };
+                            var results = data.results || data;
+                            return { results: Array.isArray(results) ? results : [] };
+                        }
                     },
-                    minimumInputLength: 1
+                    minimumInputLength: 0
                 });
             });
             
