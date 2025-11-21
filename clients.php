@@ -811,20 +811,71 @@ $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/image_handler.js"></script>
-    <script src="assets/js/master_data_dropdowns.js"></script>
     <script>
+        // DON'T include master_data_dropdowns.js here - we'll initialize dropdowns manually
+        // to avoid conflicts between global and modal-specific initialization
+        
         // Initialize file upload handlers for client photos
         $(document).ready(function() {
             if (typeof handleFileUpload === 'function') {
                 handleFileUpload('photo_upload', 'photo_preview', 'photo_data');
                 handleFileUpload('edit_photo_upload', 'edit_photo_preview', 'edit_photo_data');
             }
+            
+            // Initialize Add Client modal dropdowns - these need fresh initialization each time modal opens
+            $('#addClientModal').on('show.bs.modal', function() {
+                // When Add modal is about to show, initialize the dropdowns if not already done
+                var $modal = $(this);
+                
+                // Only initialize once when modal is first opened
+                if (!$modal.data('dropdowns-initialized')) {
+                    $modal.find('.select2-master').select2({
+                        placeholder: "Click to select or search...",
+                        allowClear: true,
+                        dropdownParent: $modal,  // Important: keeps dropdown inside modal
+                        ajax: {
+                            url: window.location.href.split('?')[0],
+                            dataType: 'json',
+                            delay: 250,
+                            data: function (params) {
+                                return {
+                                    action: 'search_master',
+                                    type: $(this).data('type'),
+                                    q: params.term || ''
+                                };
+                            },
+                            processResults: function (data) {
+                                if (!data) return { results: [] };
+                                var results = data.results || data;
+                                if (!Array.isArray(results)) results = [];
+                                return { results: results };
+                            },
+                            cache: true
+                        },
+                        minimumInputLength: 0
+                    });
+                    $modal.data('dropdowns-initialized', true);
+                }
+            });
+            
+            // Clear Add form when closing modal
+            $('#addClientModal').on('hide.bs.modal', function() {
+                this.reset();  // Reset form
+                // Destroy Select2 instances when modal is hidden to prevent leftover state
+                $(this).find('.select2-master').each(function() {
+                    if ($(this).data('select2')) {
+                        $(this).select2('destroy');
+                    }
+                });
+                $(this).data('dropdowns-initialized', false);
+            });
         });
         
         // Handle edit client button click
         document.querySelectorAll('.edit-client').forEach(button => {
             button.addEventListener('click', function() {
                 const client = JSON.parse(this.getAttribute('data-client'));
+                const modal = document.getElementById('editClientModal');
                 
                 // Populate form fields
                 document.getElementById('edit_id').value = client.id;
@@ -843,75 +894,106 @@ $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
                 document.getElementById('edit_outlet_id').value = client.outlet_id;
                 document.getElementById('edit_status').value = client.status;
                 
-                // Set selected values for dropdowns using Select2
-                // Destroy existing Select2 instances first
-                $('#edit_profession, #edit_area, #edit_road, #edit_city').each(function() {
-                    if ($(this).data('select2')) {
-                        $(this).select2('destroy');
+                // Handle dropdowns - destroy and reinitialize properly
+                const dropdownIds = ['edit_profession', 'edit_area', 'edit_road', 'edit_city'];
+                
+                // First, destroy any existing Select2 instances
+                dropdownIds.forEach(id => {
+                    const $dropdown = $('#' + id);
+                    if ($dropdown.data('select2')) {
+                        $dropdown.select2('destroy');
                     }
                 });
                 
-                // Clear all dropdowns first
-                $('#edit_profession, #edit_area, #edit_road, #edit_city').html('<option value="">Select...</option>');
+                // Clear all dropdowns
+                dropdownIds.forEach(id => {
+                    $('#' + id).html('<option value="">Select...</option>');
+                });
                 
-                // If we have values, add them as selected options
-                if (client.profession && client.profession.trim()) {
-                    $('#edit_profession').html('<option value="' + client.profession + '" selected>' + client.profession + '</option>');
-                }
-                if (client.area && client.area.trim()) {
-                    $('#edit_area').html('<option value="' + client.area + '" selected>' + client.area + '</option>');
-                }
-                if (client.road && client.road.trim()) {
-                    $('#edit_road').html('<option value="' + client.road + '" selected>' + client.road + '</option>');
-                }
-                if (client.city && client.city.trim()) {
-                    $('#edit_city').html('<option value="' + client.city + '" selected>' + client.city + '</option>');
-                }
+                // Add selected values if they exist
+                const dropdownValues = {
+                    'edit_profession': client.profession,
+                    'edit_area': client.area,
+                    'edit_road': client.road,
+                    'edit_city': client.city
+                };
                 
-                // Reinitialize Select2 with AJAX for searching additional options
-                $('#edit_profession, #edit_area, #edit_road, #edit_city').select2({
-                    placeholder: "Select or search...",
-                    allowClear: true,
-                    ajax: {
-                        url: window.location.href.split('?')[0],
-                        dataType: 'json',
-                        delay: 250,
-                        data: function (params) {
-                            return {
-                                action: 'search_master',
-                                type: $(this).data('type'),
-                                q: params.term || ''
-                            };
-                        },
-                        processResults: function (data) {
-                            // Ensure we always return {results: [...]}
-                            if (data.results && Array.isArray(data.results)) {
+                Object.keys(dropdownValues).forEach(id => {
+                    const value = dropdownValues[id];
+                    if (value && value.trim()) {
+                        $('#' + id).html('<option value="' + escapeHtml(value) + '" selected>' + escapeHtml(value) + '</option>');
+                    }
+                });
+                
+                // Now reinitialize Select2 for all dropdowns with proper configuration
+                const $modal = $(modal);
+                dropdownIds.forEach(id => {
+                    $('#' + id).select2({
+                        placeholder: "Click to select or search...",
+                        allowClear: true,
+                        dropdownParent: $modal,  // Keep dropdown within modal
+                        ajax: {
+                            url: window.location.href.split('?')[0],
+                            dataType: 'json',
+                            delay: 250,
+                            data: function (params) {
                                 return {
-                                    results: data.results
+                                    action: 'search_master',
+                                    type: $(this).data('type'),
+                                    q: params.term || ''
                                 };
-                            }
-                            return {
-                                results: data || []
-                            };
+                            },
+                            processResults: function (data) {
+                                if (!data) return { results: [] };
+                                var results = data.results || data;
+                                if (!Array.isArray(results)) results = [];
+                                return { results: results };
+                            },
+                            cache: true
                         },
-                        cache: true
-                    },
-                    minimumInputLength: 0  // Show all results when field is focused/clicked
+                        minimumInputLength: 0
+                    });
                 });
                 
                 // Show current photo if exists
                 if (client.photo_path) {
                     document.getElementById('current_photo').innerHTML = 
-                        '<p>Current Photo:</p><img src="' + client.photo_path + '" class="img-thumbnail" style="max-width: 150px;">';
+                        '<p>Current Photo:</p><img src="' + escapeHtml(client.photo_path) + '" class="img-thumbnail" style="max-width: 150px;">';
                 } else {
                     document.getElementById('current_photo').innerHTML = '<p>No current photo</p>';
                 }
                 
                 // Show the modal
-                var editModal = new bootstrap.Modal(document.getElementById('editClientModal'));
+                var editModal = new bootstrap.Modal(modal);
                 editModal.show();
             });
         });
+        
+        // Cleanup Edit modal when closing - destroy Select2 instances
+        $(document).ready(function() {
+            $('#editClientModal').on('hide.bs.modal', function() {
+                var dropdownIds = ['edit_profession', 'edit_area', 'edit_road', 'edit_city'];
+                dropdownIds.forEach(id => {
+                    const $dropdown = $('#' + id);
+                    if ($dropdown.data('select2')) {
+                        $dropdown.select2('destroy');
+                    }
+                });
+            });
+        });
+        
+        // Helper function to escape HTML and prevent XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.toString().replace(/[&<>"']/g, m => map[m]);
+        }
         
         // Handle view client button click
         document.querySelectorAll('.view-client').forEach(button => {
