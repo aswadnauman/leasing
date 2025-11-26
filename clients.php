@@ -1142,29 +1142,35 @@ $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
             // Handle edit client button click
             const editButtons = document.querySelectorAll('.edit-client');
             console.log(`[DEBUG] Found ${editButtons.length} edit buttons`);
-
+            
+            editButtons.forEach((button, index) => {
+                button.addEventListener('click', function() {
+                    if (DEBUG_ACTIONS) console.log(`[DEBUG] Edit button ${index} clicked`);
                     const clientJson = this.getAttribute('data-client');
                     try {
+                        if (!clientJson) {
+                            throw new Error('No data-client attribute found on edit button');
+                        }
                         const client = JSON.parse(clientJson);
                         const modal = document.getElementById('editClientModal');
                         const $modal = $(modal);
                         
                         // Populate form fields
-                        document.getElementById('edit_id').value = client.id;
-                        document.getElementById('edit_client_id').value = client.client_id;
-                        document.getElementById('edit_client_id_display').value = client.client_id;
-                        document.getElementById('edit_full_name').value = client.full_name;
-                        document.getElementById('edit_father_husband_name').value = client.father_husband_name;
-                        document.getElementById('edit_cnic').value = client.cnic;
-                        document.getElementById('edit_mobile_primary').value = client.mobile_primary;
-                        document.getElementById('edit_mobile_secondary').value = client.mobile_secondary;
-                        document.getElementById('edit_address_current').value = client.address_current;
-                        document.getElementById('edit_address_permanent').value = client.address_permanent;
-                        document.getElementById('edit_manual_reference_no').value = client.manual_reference_no;
-                        document.getElementById('edit_remarks').value = client.remarks;
-                        document.getElementById('existing_photo_path').value = client.photo_path;
-                        document.getElementById('edit_outlet_id').value = client.outlet_id;
-                        document.getElementById('edit_status').value = client.status;
+                        document.getElementById('edit_id').value = client.id || '';
+                        document.getElementById('edit_client_id').value = client.client_id || '';
+                        document.getElementById('edit_client_id_display').value = client.client_id || '';
+                        document.getElementById('edit_full_name').value = client.full_name || '';
+                        document.getElementById('edit_father_husband_name').value = client.father_husband_name || '';
+                        document.getElementById('edit_cnic').value = client.cnic || '';
+                        document.getElementById('edit_mobile_primary').value = client.mobile_primary || '';
+                        document.getElementById('edit_mobile_secondary').value = client.mobile_secondary || '';
+                        document.getElementById('edit_address_current').value = client.address_current || '';
+                        document.getElementById('edit_address_permanent').value = client.address_permanent || '';
+                        document.getElementById('edit_manual_reference_no').value = client.manual_reference_no || '';
+                        document.getElementById('edit_remarks').value = client.remarks || '';
+                        document.getElementById('existing_photo_path').value = client.photo_path || '';
+                        document.getElementById('edit_outlet_id').value = client.outlet_id || '';
+                        document.getElementById('edit_status').value = client.status || '';
                         
                         // Populate messaging preferences
                         document.getElementById('edit_send_sms').checked = client.send_sms == 1;
@@ -1244,8 +1250,8 @@ $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
                         var editModal = new bootstrap.Modal(modal);
                         editModal.show();
                     } catch (e) {
-                        console.error('Error parsing client data:', e);
-                        alert('Error loading client data. Please try again.');
+                        console.error('[ERROR] Edit handler error:', e);
+                        alert('Error loading client data for editing: ' + e.message);
                     }
                 });
             });
@@ -1699,25 +1705,6 @@ $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
                         console.error('[ERROR] QR handler error:', e);
                         alert('Error generating QR code: ' + e.message);
                     }
-
-                                margin: 2,
-                                color: {
-                                    dark: '#000000',
-                                    light: '#ffffff'
-                                }
-                            }, function (error) {
-                                if (error) {
-                                    console.error('Error generating QR code:', error);
-                                    qrContainer.innerHTML = '<div class="alert alert-danger">Error generating QR code</div>';
-                                }
-                            });
-                        }
-                    });
-                    
-                    // Clean up modal when closed
-                    document.getElementById('qrCodeModal').addEventListener('hidden.bs.modal', function () {
-                        document.getElementById('qrCodeModal').remove();
-                    });
                 });
             });
             
