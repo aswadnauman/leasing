@@ -1099,6 +1099,18 @@ $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
         // Debug flag - set to true to see console logs
         const DEBUG_ACTIONS = true;
         
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
         // Initialize file upload handlers for client photos
         $(document).ready(function() {
             console.log('[DEBUG] Document ready - initializing action handlers');
@@ -1137,15 +1149,273 @@ $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
         
         // Ensure all event listeners are attached after DOM is fully loaded
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('[DEBUG] DOM fully loaded - attaching event listeners for action buttons');
+            console.log('[DEBUG] DOM fully loaded - setting up event delegation for action buttons');
             
-            // Handle edit client button click
-            const editButtons = document.querySelectorAll('.edit-client');
-            console.log(`[DEBUG] Found ${editButtons.length} edit buttons`);
+            // Use event delegation on document for maximum compatibility
+            document.addEventListener('click', function(event) {
+                const button = event.target.closest('button');
+                if (!button) return;
+                
+                // EDIT BUTTON
+                if (button.classList.contains('edit-client')) {
+                    event.preventDefault();
+                    console.log('[DEBUG] Edit button clicked');
+                    const clientJson = button.getAttribute('data-client');
+                    try {
+                        if (!clientJson) throw new Error('No client data');
+                        const client = JSON.parse(clientJson);
+                        const modal = document.getElementById('editClientModal');
+                        
+                        // Populate all form fields
+                        Object.assign(document.getElementById('edit_id'), { value: client.id || '' });
+                        Object.assign(document.getElementById('edit_client_id'), { value: client.client_id || '' });
+                        Object.assign(document.getElementById('edit_client_id_display'), { value: client.client_id || '' });
+                        Object.assign(document.getElementById('edit_full_name'), { value: client.full_name || '' });
+                        Object.assign(document.getElementById('edit_father_husband_name'), { value: client.father_husband_name || '' });
+                        Object.assign(document.getElementById('edit_cnic'), { value: client.cnic || '' });
+                        Object.assign(document.getElementById('edit_mobile_primary'), { value: client.mobile_primary || '' });
+                        Object.assign(document.getElementById('edit_mobile_secondary'), { value: client.mobile_secondary || '' });
+                        Object.assign(document.getElementById('edit_address_current'), { value: client.address_current || '' });
+                        Object.assign(document.getElementById('edit_address_permanent'), { value: client.address_permanent || '' });
+                        Object.assign(document.getElementById('edit_manual_reference_no'), { value: client.manual_reference_no || '' });
+                        Object.assign(document.getElementById('edit_remarks'), { value: client.remarks || '' });
+                        Object.assign(document.getElementById('existing_photo_path'), { value: client.photo_path || '' });
+                        Object.assign(document.getElementById('edit_outlet_id'), { value: client.outlet_id || '' });
+                        Object.assign(document.getElementById('edit_status'), { value: client.status || '' });
+                        
+                        // Set checkboxes
+                        document.getElementById('edit_send_sms').checked = (client.send_sms == 1);
+                        document.getElementById('edit_send_whatsapp').checked = (client.send_whatsapp == 1);
+                        
+                        // Show photo
+                        const photoDiv = document.getElementById('current_photo');
+                        if (photoDiv) {
+                            if (client.photo_path) {
+                                photoDiv.innerHTML = '<p>Current Photo:</p><img src="' + escapeHtml(client.photo_path) + '" class="img-thumbnail" style="max-width: 150px;">';
+                            } else {
+                                photoDiv.innerHTML = '<p>No current photo</p>';
+                            }
+                        }
+                        
+                        // Show modal
+                        new bootstrap.Modal(modal).show();
+                        console.log('[DEBUG] Edit modal displayed');
+                    } catch (e) {
+                        console.error('[ERROR]', e.message);
+                        alert('Error: ' + e.message);
+                    }
+                }
+                
+                // VIEW BUTTON
+                if (button.classList.contains('view-client')) {
+                    event.preventDefault();
+                    console.log('[DEBUG] View button clicked');
+                    const clientJson = button.getAttribute('data-client');
+                    try {
+                        if (!clientJson) throw new Error('No client data');
+                        const client = JSON.parse(clientJson);
+                        
+                        document.getElementById('view_client_id').textContent = client.client_id || 'N/A';
+                        document.getElementById('view_full_name').textContent = client.full_name || 'N/A';
+                        document.getElementById('view_father_husband_name').textContent = client.father_husband_name || 'N/A';
+                        document.getElementById('view_cnic').textContent = client.cnic || 'N/A';
+                        document.getElementById('view_mobile_primary').textContent = client.mobile_primary || 'N/A';
+                        document.getElementById('view_mobile_secondary').textContent = client.mobile_secondary || 'N/A';
+                        document.getElementById('view_address_current').textContent = client.address_current || 'N/A';
+                        document.getElementById('view_address_permanent').textContent = client.address_permanent || 'N/A';
+                        document.getElementById('view_area').textContent = client.area || 'N/A';
+                        document.getElementById('view_road').textContent = client.road || 'N/A';
+                        document.getElementById('view_city').textContent = client.city || 'N/A';
+                        document.getElementById('view_profession').textContent = client.profession || 'N/A';
+                        document.getElementById('view_manual_reference_no').textContent = client.manual_reference_no || 'N/A';
+                        document.getElementById('view_outlet_id').textContent = client.outlet_id || 'N/A';
+                        document.getElementById('view_remarks').textContent = client.remarks || 'N/A';
+                        document.getElementById('view_send_sms').textContent = (client.send_sms == 1 ? 'Yes' : 'No');
+                        document.getElementById('view_send_whatsapp').textContent = (client.send_whatsapp == 1 ? 'Yes' : 'No');
+                        
+                        document.getElementById('view_status').innerHTML = (client.status == 'Active' ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Blocked</span>');
+                        
+                        const photoDiv = document.getElementById('view_photo');
+                        if (photoDiv) {
+                            if (client.photo_path && client.photo_path.trim()) {
+                                photoDiv.innerHTML = '<img src="' + escapeHtml(client.photo_path) + '" class="img-fluid rounded" alt="Client Photo" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">';
+                            } else {
+                                photoDiv.innerHTML = '<div class="bg-light p-5 rounded text-center" style="max-width: 200px; height: 200px; display: flex; align-items: center; justify-content: center;"><span class="text-muted">No photo available</span></div>';
+                            }
+                        }
+                        
+                        new bootstrap.Modal(document.getElementById('viewClientModal')).show();
+                        console.log('[DEBUG] View modal displayed');
+                    } catch (e) {
+                        console.error('[ERROR]', e.message);
+                        alert('Error: ' + e.message);
+                    }
+                }
+                
+                // PRINT BUTTON
+                if (button.classList.contains('print-client')) {
+                    event.preventDefault();
+                    console.log('[DEBUG] Print button clicked');
+                    const clientJson = button.getAttribute('data-client');
+                    try {
+                        if (!clientJson) throw new Error('No client data');
+                        const client = JSON.parse(clientJson);
+                        
+                        const printWindow = window.open('', '_blank', 'width=900,height=700');
+                        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Client Details - ${escapeHtml(client.full_name)}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f8f9fa; }
+        .container { background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #007bff; text-align: center; margin-bottom: 5px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; font-size: 1.3em; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .field { margin-bottom: 10px; }
+        .label { font-weight: bold; color: #007bff; font-size: 0.9em; }
+        .value { padding: 8px; background: #f1f3f5; border-left: 3px solid #007bff; border-radius: 4px; }
+        .section { margin-top: 25px; padding-top: 15px; border-top: 2px solid #007bff; }
+        @media print { body { background: white; } .container { box-shadow: none; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CLIENT DETAILS</h1>
+        <h2>${escapeHtml(client.full_name)}</h2>
+        <div class="row">
+            <div class="field"><div class="label">Client ID:</div><div class="value">${escapeHtml(client.client_id)}</div></div>
+            <div class="field"><div class="label">Full Name:</div><div class="value">${escapeHtml(client.full_name)}</div></div>
+            <div class="field"><div class="label">Father/Husband:</div><div class="value">${escapeHtml(client.father_husband_name)}</div></div>
+            <div class="field"><div class="label">CNIC:</div><div class="value">${escapeHtml(client.cnic)}</div></div>
+            <div class="field"><div class="label">Profession:</div><div class="value">${escapeHtml(client.profession)}</div></div>
+            <div class="field"><div class="label">Status:</div><div class="value">${escapeHtml(client.status)}</div></div>
+            <div class="field"><div class="label">Primary Mobile:</div><div class="value">${escapeHtml(client.mobile_primary)}</div></div>
+            <div class="field"><div class="label">Secondary Mobile:</div><div class="value">${escapeHtml(client.mobile_secondary || 'N/A')}</div></div>
+        </div>
+        <div class="section">
+            <div class="field"><div class="label">Current Address:</div><div class="value">${escapeHtml(client.address_current)}</div></div>
+            <div class="field"><div class="label">Permanent Address:</div><div class="value">${escapeHtml(client.address_permanent)}</div></div>
+            <div class="field"><div class="label">Area:</div><div class="value">${escapeHtml(client.area || 'N/A')}</div></div>
+            <div class="field"><div class="label">Road:</div><div class="value">${escapeHtml(client.road || 'N/A')}</div></div>
+            <div class="field"><div class="label">City:</div><div class="value">${escapeHtml(client.city || 'N/A')}</div></div>
+        </div>
+        <div class="section">
+            <div class="row">
+                <div class="field"><div class="label">Reference No:</div><div class="value">${escapeHtml(client.manual_reference_no || 'N/A')}</div></div>
+                <div class="field"><div class="label">Outlet:</div><div class="value">${escapeHtml(client.outlet_id)}</div></div>
+                <div class="field"><div class="label">SMS Notify:</div><div class="value">${(client.send_sms == 1 ? 'Yes' : 'No')}</div></div>
+                <div class="field"><div class="label">WhatsApp Notify:</div><div class="value">${(client.send_whatsapp == 1 ? 'Yes' : 'No')}</div></div>
+            </div>
+            <div class="field"><div class="label">Remarks:</div><div class="value">${escapeHtml(client.remarks || 'N/A')}</div></div>
+        </div>
+    </div>
+    <script>window.onload = function() { window.print(); };</script>
+</body>
+</html>`;
+                        printWindow.document.write(html);
+                        printWindow.document.close();
+                        console.log('[DEBUG] Print window opened');
+                    } catch (e) {
+                        console.error('[ERROR]', e.message);
+                        alert('Error: ' + e.message);
+                    }
+                }
+                
+                // DELETE BUTTON
+                if (button.classList.contains('delete-client')) {
+                    event.preventDefault();
+                    console.log('[DEBUG] Delete button clicked');
+                    const clientId = button.getAttribute('data-id');
+                    try {
+                        if (!clientId) throw new Error('No client ID');
+                        document.getElementById('delete_client_id').value = clientId;
+                        new bootstrap.Modal(document.getElementById('deleteClientModal')).show();
+                        console.log('[DEBUG] Delete modal displayed');
+                    } catch (e) {
+                        console.error('[ERROR]', e.message);
+                        alert('Error: ' + e.message);
+                    }
+                }
+                
+                // QR BUTTON
+                if (button.classList.contains('qr-scan-client')) {
+                    event.preventDefault();
+                    console.log('[DEBUG] QR button clicked');
+                    const clientId = button.getAttribute('data-client-id');
+                    const clientName = button.getAttribute('data-client-name');
+                    try {
+                        if (!clientId || !clientName) throw new Error('Missing client data for QR');
+                        
+                        const qrData = `CLIENT_ID:${clientId}|NAME:${clientName}`;
+                        const modalHtml = `<div class="modal fade" id="qrCodeModal" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-success text-white">
+                                        <h5 class="modal-title">QR Code: ${escapeHtml(clientName)}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-center">
+                                        <div id="qrCodeContainer" class="my-4"></div>
+                                        <div class="alert alert-info">QR Data: ${escapeHtml(qrData)}</div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                        
+                        const oldModal = document.getElementById('qrCodeModal');
+                        if (oldModal) oldModal.remove();
+                        
+                        document.body.insertAdjacentHTML('beforeend', modalHtml);
+                        const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+                        modal.show();
+                        
+                        document.getElementById('qrCodeModal').addEventListener('shown.bs.modal', function onShown() {
+                            if (typeof QRCode === 'undefined') {
+                                document.getElementById('qrCodeContainer').innerHTML = '<div class="alert alert-danger">QRCode library not loaded</div>';
+                                return;
+                            }
+                            QRCode.toCanvas(document.getElementById('qrCodeContainer'), qrData, {
+                                width: 200,
+                                height: 200,
+                                margin: 2,
+                                color: { dark: '#000000', light: '#ffffff' }
+                            }, function(err) {
+                                if (err) {
+                                    console.error('[ERROR] QR generation failed:', err);
+                                    document.getElementById('qrCodeContainer').innerHTML = '<div class="alert alert-danger">Error generating QR code</div>';
+                                } else {
+                                    console.log('[DEBUG] QR code generated');
+                                }
+                            });
+                        }, { once: true });
+                        
+                        document.getElementById('qrCodeModal').addEventListener('hidden.bs.modal', function() {
+                            this.remove();
+                        }, { once: true });
+                        
+                        console.log('[DEBUG] QR modal created');
+                    } catch (e) {
+                        console.error('[ERROR]', e.message);
+                        alert('Error: ' + e.message);
+                    }
+                }
+            });
             
-            editButtons.forEach((button, index) => {
-                button.addEventListener('click', function() {
-                    if (DEBUG_ACTIONS) console.log(`[DEBUG] Edit button ${index} clicked`);
+            // Auto-expand advanced search if needed
+            const hasSearchParams = <?php echo json_encode($has_search); ?>;
+            if (hasSearchParams) {
+                const advancedSearch = document.getElementById('advancedSearch');
+                if (advancedSearch) {
+                    new bootstrap.Collapse(advancedSearch, { toggle: false }).show();
+                }
+            }
+        });
                     const clientJson = this.getAttribute('data-client');
                     try {
                         if (!clientJson) {
