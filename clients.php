@@ -1137,14 +1137,43 @@ $outlets_result = $conn->query("SELECT outlet_id, outlet_name FROM outlets");
                 // Also initialize dropdowns for Edit Client modal when shown
                 $('#editClientModal').on('show.bs.modal', function() {
                     var $modal = $(this);
-                    if (!$modal.data('dropdowns-initialized')) {
-                        Select2DropdownInitializer.initializeOutletDropdowns($modal);
-                        $modal.data('dropdowns-initialized', true);
-                    }
+                    // Reset dropdown initialization flag so they reinitialize
+                    $modal.data('dropdowns-initialized', false);
+                    Select2DropdownInitializer.initializeOutletDropdowns($modal);
+                    $modal.data('dropdowns-initialized', true);
+                });
+                
+                // Reset Add modal when closed
+                $('#addClientModal').on('hidden.bs.modal', function() {
+                    $(this).data('dropdowns-initialized', false);
+                    document.getElementById('addClientForm').reset();
+                    document.getElementById('photo_preview').innerHTML = '';
+                    document.getElementById('photo_data').value = '';
+                });
+                
+                // Reset Edit modal when closed
+                $('#editClientModal').on('hidden.bs.modal', function() {
+                    $(this).data('dropdowns-initialized', false);
+                    document.getElementById('editClientForm').reset();
+                    document.getElementById('edit_photo_preview').innerHTML = '';
+                    document.getElementById('edit_photo_data').value = '';
                 });
             } else {
                 console.warn('[WARNING] Select2DropdownInitializer not loaded');
             }
+            
+            // Log form submission
+            $('#addClientForm').on('submit', function(e) {
+                console.log('[DEBUG] Add client form submitted');
+            });
+            
+            $('#editClientForm').on('submit', function(e) {
+                console.log('[DEBUG] Edit client form submitted');
+            });
+            
+            $('#deleteClientModal').on('show.bs.modal', function() {
+                console.log('[DEBUG] Delete modal shown, ready for submission');
+            });
         });
         
         // Ensure all event listeners are attached after DOM is fully loaded
